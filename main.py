@@ -1,6 +1,6 @@
-# импортируем библиотеки
 from flask import Flask, request, jsonify
 import logging
+import random
 
 # создаём приложение
 # мы передаём __name__, в нём содержится информация,
@@ -65,13 +65,15 @@ def handle_dialog(req, res):
 
         sessionStorage[user_id] = {
             'suggests': [
-                "Не хочу.",
-                "Не буду.",
-                "Отстань!",
+                "Подсказка",
+                "На какую букву ходить",
+                "Правила!",
             ]
         }
         # Заполняем текст ответа
-        res['response']['text'] = 'Привет! Купи слона!'
+        res['response'][
+            'text'] = 'Вы называете имя, а я говорю имя на последнюю букву - и так далее. Только учтите - мягкий знак' \
+                      ' и буква "ы" не считаются. Называйте имя! Можете начать со своего'
         # Получим подсказки
         res['response']['buttons'] = get_suggests(user_id)
         return
@@ -98,8 +100,19 @@ def handle_dialog(req, res):
         return
 
     # Если нет, то убеждаем его купить слона!
-    res['response']['text'] = \
-        f"Все говорят '{req['request']['original_utterance']}', а ты купи слона!"
+    name = req['request']['original_utterance']
+    print(name)
+    if name:
+        with open('name.txt', encoding='utf-8') as f:
+            a = list(map(lambda x: x[:-1], f.readlines()))
+            if name.capitalize() in a:
+                letter = name[-1] if name[-1] != 'ь' and name[-1] != 'ы' else name[-2]
+                a = list(filter(lambda x: x[0] == letter.upper(), a))
+                test_answer = a[random.randrange(len(a))]
+                # test_answer = "123"
+            else:
+                test_answer = 'Не уверена, что такое имя существует'
+    res['response']['text'] = test_answer
     res['response']['buttons'] = get_suggests(user_id)
 
 
@@ -122,7 +135,7 @@ def get_suggests(user_id):
     if len(suggests) < 2:
         suggests.append({
             "title": "Ладно",
-            "url": "https://market.yandex.ru/search?text=слон",
+            "url": f"https://market.yandex.ru/search?text=слон",
             "hide": True
         })
 
