@@ -72,8 +72,10 @@ def handle_dialog(req, res):
         }
         # Заполняем текст ответа
         res['response'][
-            'text'] = 'Вы называете имя, а я говорю имя на последнюю букву - и так далее. Только учтите - мягкий знак' \
-                      ' и буква "ы" не считаются. Называйте имя! Можете начать со своего'
+            'text'] = 'Вы называете имя, а я говорю имя на последнюю букву - и так далее. Только учтите - мягкий' \
+                      ' и твердый знак, а также и буквы "ы" и "й" не считаются. Называйте имя! Можете начать со своего'
+        with open('names_for_user.txt', 'w', encoding='utf-8') as f:
+            f.write('')
         # Получим подсказки
         res['response']['buttons'] = get_suggests(user_id)
         return
@@ -101,17 +103,38 @@ def handle_dialog(req, res):
 
     # Если нет, то убеждаем его купить слона!
     name = req['request']['original_utterance']
-    print(name)
     if name:
+        name = name.capitalize()
         with open('name.txt', encoding='utf-8') as f:
             a = list(map(lambda x: x[:-1], f.readlines()))
-            if name.capitalize() in a:
-                letter = name[-1] if name[-1] != 'ь' and name[-1] != 'ы' else name[-2]
-                a = list(filter(lambda x: x[0] == letter.upper(), a))
-                test_answer = a[random.randrange(len(a))]
-                # test_answer = "123"
+        with open('names_for_user.txt', encoding='utf-8') as f:
+            b = list(map(lambda x: x[:-1], f.readlines()))
+        if b:
+            letterb = b[-1][-1] if b[-1][-1] != 'ь' and b[-1][-1] != 'ы' and b[-1][-1] != 'й' else b[-1][-2]
+            if name not in a:
+                test_answer = f'Не уверена, что такое имя существует. Вам на "{letterb.capitalize()}"'
+            elif name[0] != letterb.capitalize():
+                test_answer = f'Вы назвали имя не на ту букву. Вам на "{letterb.capitalize()}"'
+            elif name in a and name in b:
+                test_answer = f'Такое имя уже было. Вам на "{letterb.capitalize()}"'
             else:
-                test_answer = 'Не уверена, что такое имя существует'
+                letter = name[-1] if name[-1] != 'ь' and name[-1] != 'ы' and name[-1] != 'й' else name[-2]
+                a = list(filter(lambda x: x[0] == letter.upper() and x not in b, a))
+                test_answer = a[random.randrange(len(a))]
+                b.append(name)
+                b.append(test_answer)
+        else:
+            if name not in a:
+                test_answer = f'Не уверена, что такое имя существует.'
+            else:
+                letter = name[-1] if name[-1] != 'ь' and name[-1] != 'ы' and name[-1] != 'й' else name[-2]
+                a = list(filter(lambda x: x[0] == letter.upper() and x not in b, a))
+                test_answer = a[random.randrange(len(a))]
+                b.append(name)
+                b.append(test_answer)
+        with open('names_for_user.txt', 'w', encoding='utf-8') as f:
+            for i in b:
+                f.write(i + '\n')
     res['response']['text'] = test_answer
     res['response']['buttons'] = get_suggests(user_id)
 
