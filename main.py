@@ -67,7 +67,7 @@ def handle_dialog(req, res):
             'suggests': [
                 "Подсказка",
                 "На какую букву ходить",
-                "Правила!",
+                "Правила",
             ]
         }
         # Заполняем текст ответа
@@ -146,11 +146,11 @@ def get_suggests(user_id):
     # Выбираем две первые подсказки из массива.
     suggests = [
         {'title': suggest, 'hide': True}
-        for suggest in session['suggests'][:2]
+        for suggest in session['suggests']
     ]
 
     # Убираем первую подсказку, чтобы подсказки менялись каждый раз.
-    session['suggests'] = session['suggests'][1:]
+    session['suggests'] = session['suggests']
     sessionStorage[user_id] = session
 
     # Если осталась только одна подсказка, предлагаем подсказку
