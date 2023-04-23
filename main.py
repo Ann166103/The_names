@@ -2,35 +2,15 @@ from flask import Flask, request, jsonify
 import logging
 import random
 
-# создаём приложение
-# мы передаём __name__, в нём содержится информация,
-# в каком модуле мы находимся.
-# В данном случае там содержится '__main__',
-# так как мы обращаемся к переменной из запущенного модуля.
-# если бы такое обращение, например, произошло внутри модуля logging,
-# то мы бы получили 'logging'
 app = Flask(__name__)
 
 # Устанавливаем уровень логирования
 logging.basicConfig(level=logging.INFO)
 
-# Создадим словарь, чтобы для каждой сессии общения
-# с навыком хранились подсказки, которые видел пользователь.
-# Это поможет нам немного разнообразить подсказки ответов
-# (buttons в JSON ответа).
-# Когда новый пользователь напишет нашему навыку,
-# то мы сохраним в этот словарь запись формата
-# sessionStorage[user_id] = {'suggests': ["Не хочу.", "Не буду.", "Отстань!" ]}
-# Такая запись говорит, что мы показали пользователю эти три подсказки.
-# Когда он откажется купить слона,
-# то мы уберем одну подсказку. Как будто что-то меняется :)
 sessionStorage = {}
 
 
 @app.route('/post', methods=['POST'])
-# Функция получает тело запроса и возвращает ответ.
-# Внутри функции доступен request.json - это JSON,
-# который отправила нам Алиса в запросе POST
 def main():
     logging.info(f'Request: {request.json!r}')
 
@@ -43,7 +23,6 @@ def main():
             'end_session': False
         }
     }
-
     # Отправляем request.json и response в функцию handle_dialog.
     # Она сформирует оставшиеся поля JSON, которые отвечают
     # непосредственно за ведение диалога
@@ -71,89 +50,90 @@ def handle_dialog(req, res):
             ]
         }
         # Заполняем текст ответа
-        res['response'][
-            'text'] = 'Вы называете имя, а я говорю имя на последнюю букву - и так далее. Только учтите - мягкий' \
-                      ' и твердый знак, а также и буквы "ы" и "й" не считаются. Называйте имя! Можете начать со своего'
+        # Используем изображение из ресурсов
+        res['response']['card'] = {}
+        res['response']['card']['type'] = 'BigImage'
+        res['response']['card']['image_id'] = '1533899/9e82819a86739cb9e5bd'
+        res['response']['text'] = 'Игра в имена'
+        res['response']['card'][
+            'description'] = 'Это игра в имена. Вы называете имя, а я говорю имя на последнюю букву - и так далее.' \
+                             ' Только учтите - мягкий и твердый знаки, а также и буквы "ы" и "й"' \
+                             ' не считаются. Называйте имя! Можете начать со своего'
         with open('names_for_user.txt', 'w', encoding='utf-8') as f:
             f.write('')
-        # Получим подсказки
         res['response']['buttons'] = get_suggests(user_id)
         return
 
-    # Сюда дойдем только, если пользователь не новый,
-    # и разговор с Алисой уже был начат
     # Обрабатываем ответ пользователя.
-    # В req['request']['original_utterance'] лежит весь текст,
-    # что нам прислал пользователь
-    # Если он написал 'ладно', 'куплю', 'покупаю', 'хорошо',
-    # то мы считаем, что пользователь согласился.
-    # Подумайте, всё ли в этом фрагменте написано "красиво"?
-    if 'правила' in req['request']['original_utterance'].lower():
-        # Пользователь согласился, прощаемся.
+    name = req['request']['original_utterance']
+    with open('name.txt', encoding='utf-8') as f:
+        all_names = list(map(lambda x: x[:-1], f.readlines()))
+    with open('names_for_user.txt', encoding='utf-8') as f:
+        names_for_user = list(map(lambda x: x[:-1], f.readlines()))
+    # Обрабатываем сторонние ветки
+    if 'правила' in name.lower():
         res['response']['text'] = 'Вы называете имя, а я говорю имя на последнюю букву - и так далее. Только ' \
                                   'учтите – мягкий и твердый знак, а также и буквы "ы" и "й" не считаются'
         res['response']['buttons'] = get_suggests(user_id)
         return
-    if req['request']['original_utterance'].lower() in [
-        'на какую букву ходить',
-        'какая буква',
-        'какая сейчас буква']:
-        # Пользователь согласился, прощаемся.
-        with open('names_for_user.txt', encoding='utf-8') as f:
-            b = list(map(lambda x: x[:-1], f.readlines()))
-        if b:
-            letterb = b[-1][-1] if b[-1][-1] != 'ь' and b[-1][-1] != 'ы' and b[-1][-1] != 'й' else b[-1][-2]
-            res['response']['text'] = f'Назовите имя на букву "{letterb.capitalize()}"'
+    if "букв" in name.lower():
+        if names_for_user:
+            last_letter = names_for_user[-1][-1] if names_for_user[-1][-1] != 'ь' and\
+                                                    names_for_user[-1][-1] != 'ы' and \
+                                                    names_for_user[-1][-1] != 'й' else names_for_user[-1][-2]
+            res['response']['text'] = f'Назовите имя на букву "{last_letter.capitalize()}"'
         else:
             res['response']['text'] = 'Ваш ход – вам и решать'
         res['response']['buttons'] = get_suggests(user_id)
         return
-    if 'подсказк' in req['request']['original_utterance'].lower():
+    if 'подсказк' in name.lower():
         with open('name.txt', encoding='utf-8') as f:
-            a = list(map(lambda x: x[:-1], f.readlines()))
-        with open('names_for_user.txt', encoding='utf-8') as f:
-            b = list(map(lambda x: x[:-1], f.readlines()))
-        if b:
-            letterb = b[-1][-1] if b[-1][-1] != 'ь' and b[-1][-1] != 'ы' and b[-1][-1] != 'й' else b[-1][-2]
-            a = list(filter(lambda x: x[0] == letterb.upper() and x not in b, a))
-        text_answer = ''.join(set(a[random.randrange(len(a))].upper()))
-        res['response']['text'] = f'Такое сочетание букв ничего не напоминает "{text_answer}"?'
+            all_names = list(map(lambda x: x[:-1], f.readlines()))
+        if names_for_user:
+            last_letter = names_for_user[-1][-1] if names_for_user[-1][-1] != 'ь' and names_for_user[-1][-1] != 'ы' and \
+                                                    names_for_user[-1][-1] != 'й' else names_for_user[-1][-2]
+            all_names = list(filter(lambda x: x[0] == last_letter.upper() and x not in names_for_user, all_names))
+        test_answer_1 = list(all_names[random.randrange(len(all_names))].upper())
+        random.shuffle(test_answer_1)
+        test_answer_1 = f'Такое сочетание букв ничего не напоминает "{"".join(test_answer_1)}"?'
+        all_names_2 = list(filter(lambda x: len(x) > 5, all_names))
+        word = all_names_2[random.randrange(len(all_names_2))]
+        test_answer_2 = f'В имени {len(word)} букв. Начинается на "{word[:4]}"'
+        text_answer = [test_answer_1, test_answer_2][random.randrange(2)]
+        res['response']['text'] = text_answer
         res['response']['buttons'] = get_suggests(user_id)
         return
 
-    # Если нет, то убеждаем его купить слона!
-    name = req['request']['original_utterance']
+    # Обрабатываем основную ветку
     if name:
         name = name.capitalize()
-        with open('name.txt', encoding='utf-8') as f:
-            a = list(map(lambda x: x[:-1], f.readlines()))
-        with open('names_for_user.txt', encoding='utf-8') as f:
-            b = list(map(lambda x: x[:-1], f.readlines()))
-        if b:
-            letterb = b[-1][-1] if b[-1][-1] != 'ь' and b[-1][-1] != 'ы' and b[-1][-1] != 'й' else b[-1][-2]
-            if name not in a:
-                text_answer = f'Не уверена, что такое имя существует. Вам на "{letterb.capitalize()}"'
-            elif name[0] != letterb.capitalize():
-                text_answer = f'Вы назвали имя не на ту букву. Вам на "{letterb.capitalize()}"'
-            elif name in a and name in b:
-                text_answer = f'Такое имя уже было. Вам на "{letterb.capitalize()}"'
+        if names_for_user:
+            last_letter = names_for_user[-1][-1] if names_for_user[-1][-1] != 'ь' and\
+                                                    names_for_user[-1][-1] != 'ы' and \
+                                                    names_for_user[-1][-1] != 'й' else names_for_user[-1][-2]
+            if name not in all_names:
+                text_answer = f'Не уверена, что такое имя существует. Вам на "{last_letter.capitalize()}"'
+            elif name[0] != last_letter.capitalize():
+                text_answer = f'Вы назвали имя не на ту букву. Вам на "{last_letter.capitalize()}"'
+            elif name in all_names and name in names_for_user:
+                text_answer = f'Такое имя уже было. Вам на "{last_letter.capitalize()}"'
             else:
                 letter = name[-1] if name[-1] != 'ь' and name[-1] != 'ы' and name[-1] != 'й' else name[-2]
-                a = list(filter(lambda x: x[0] == letter.upper() and x not in b, a))
-                text_answer = a[random.randrange(len(a))]
-                b.append(name)
-                b.append(text_answer)
+                all_names = list(filter(lambda x: x[0] == letter.upper() and x not in names_for_user, all_names))
+                text_answer = all_names[random.randrange(len(all_names))]
+                names_for_user.append(name)
+                names_for_user.append(text_answer)
         else:
-            if name not in a:
+            if name not in all_names:
                 text_answer = f'Не уверена, что такое имя существует.'
             else:
                 letter = name[-1] if name[-1] != 'ь' and name[-1] != 'ы' and name[-1] != 'й' else name[-2]
-                a = list(filter(lambda x: x[0] == letter.upper() and x not in b, a))
-                text_answer = a[random.randrange(len(a))]
-                b.append(name)
-                b.append(text_answer)
+                all_names = list(filter(lambda x: x[0] == letter.upper() and x not in names_for_user, all_names))
+                text_answer = all_names[random.randrange(len(all_names))]
+                names_for_user.append(name)
+                names_for_user.append(text_answer)
         with open('names_for_user.txt', 'w', encoding='utf-8') as f:
-            for i in b:
+            for i in names_for_user:
                 f.write(i + '\n')
     res['response']['text'] = text_answer
     res['response']['buttons'] = get_suggests(user_id)
@@ -163,24 +143,13 @@ def handle_dialog(req, res):
 def get_suggests(user_id):
     session = sessionStorage[user_id]
 
-    # Выбираем две первые подсказки из массива.
     suggests = [
         {'title': suggest, 'hide': True}
         for suggest in session['suggests']
     ]
 
-    # Убираем первую подсказку, чтобы подсказки менялись каждый раз.
     session['suggests'] = session['suggests']
     sessionStorage[user_id] = session
-
-    # Если осталась только одна подсказка, предлагаем подсказку
-    # со ссылкой на Яндекс.Маркет.
-    if len(suggests) < 2:
-        suggests.append({
-            "title": "Ладно",
-            "url": f"https://market.yandex.ru/search?text=слон",
-            "hide": True
-        })
 
     return suggests
 
