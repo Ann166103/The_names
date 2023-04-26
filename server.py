@@ -78,7 +78,7 @@ def handle_dialog(req, res):
         return
     if "букв" in name.lower():
         if names_for_user:
-            last_letter = names_for_user[-1][-1] if names_for_user[-1][-1] != 'ь' and\
+            last_letter = names_for_user[-1][-1] if names_for_user[-1][-1] != 'ь' and \
                                                     names_for_user[-1][-1] != 'ы' and \
                                                     names_for_user[-1][-1] != 'й' else names_for_user[-1][-2]
             res['response']['text'] = f'Назовите имя на букву "{last_letter.capitalize()}"'
@@ -87,12 +87,16 @@ def handle_dialog(req, res):
         res['response']['buttons'] = get_suggests(user_id)
         return
     if 'подсказк' in name.lower():
-        with open('name.txt', encoding='utf-8') as f:
-            all_names = list(map(lambda x: x[:-1], f.readlines()))
         if names_for_user:
-            last_letter = names_for_user[-1][-1] if names_for_user[-1][-1] != 'ь' and names_for_user[-1][-1] != 'ы' and \
+            last_letter = names_for_user[-1][-1] if names_for_user[-1][-1] != 'ь' and \
+                                                    names_for_user[-1][-1] != 'ы' and \
                                                     names_for_user[-1][-1] != 'й' else names_for_user[-1][-2]
             all_names = list(filter(lambda x: x[0] == last_letter.upper() and x not in names_for_user, all_names))
+            if len(all_names) == 0:
+                res['response']['text'] = f'У меня закончились имена на ' \
+                                          f'букву "{last_letter.capitalize()}"! Игра окончена. Жду вас снова!'
+                res['response']['end_session'] = True
+                return
         test_answer_1 = list(all_names[random.randrange(len(all_names))].upper())
         random.shuffle(test_answer_1)
         test_answer_1 = f'Такое сочетание букв ничего не напоминает "{"".join(test_answer_1)}"?'
@@ -108,7 +112,7 @@ def handle_dialog(req, res):
     if name:
         name = name.capitalize()
         if names_for_user:
-            last_letter = names_for_user[-1][-1] if names_for_user[-1][-1] != 'ь' and\
+            last_letter = names_for_user[-1][-1] if names_for_user[-1][-1] != 'ь' and \
                                                     names_for_user[-1][-1] != 'ы' and \
                                                     names_for_user[-1][-1] != 'й' else names_for_user[-1][-2]
             if name not in all_names:
@@ -120,6 +124,11 @@ def handle_dialog(req, res):
             else:
                 letter = name[-1] if name[-1] != 'ь' and name[-1] != 'ы' and name[-1] != 'й' else name[-2]
                 all_names = list(filter(lambda x: x[0] == letter.upper() and x not in names_for_user, all_names))
+                if len(all_names) == 0:
+                    res['response']['text'] = f'У меня закончились имена на ' \
+                                              f'букву "{letter.capitalize()}"! Игра окончена. Жду вас снова!'
+                    res['response']['end_session'] = True
+                    return
                 text_answer = all_names[random.randrange(len(all_names))]
                 names_for_user.append(name)
                 names_for_user.append(text_answer)
