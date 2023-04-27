@@ -1,2 +1,2 @@
 Сайт: https://capable-balanced-path.glitch.me/
-Webhook URL: https://capable-balanced-path.glitch.me//post
+Webhook URL: https://capable-balanced-path.glitch.me/post
