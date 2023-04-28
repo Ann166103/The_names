@@ -53,7 +53,7 @@ def handle_dialog(req, res):
         # Используем изображение из ресурсов
         res['response']['card'] = {}
         res['response']['card']['type'] = 'BigImage'
-        res['response']['card']['image_id'] = '1533899/9e82819a86739cb9e5bd'
+        res['response']['card']['image_id'] = '1540737/39ad4224c4fd4157db50'
         res['response']['text'] = 'Игра в имена'
         res['response']['card'][
             'description'] = 'Это игра в имена. Вы называете имя, а я говорю имя на последнюю букву - и так далее.' \
