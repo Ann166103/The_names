@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 import logging
 import random
+import os
 
 app = Flask(__name__)
 
@@ -35,7 +36,8 @@ def main():
 
 
 def handle_dialog(req, res):
-    user_id = req['session']['user_id']
+    user_id = req['session']['session_id']
+    session_id = req['session']['session_id']
 
     if req['session']['new']:
         # Это новый пользователь.
@@ -50,16 +52,10 @@ def handle_dialog(req, res):
             ]
         }
         # Заполняем текст ответа
-        # Используем изображение из ресурсов
-        res['response']['card'] = {}
-        res['response']['card']['type'] = 'BigImage'
-        res['response']['card']['image_id'] = '1540737/39ad4224c4fd4157db50'
-        res['response']['text'] = 'Игра в имена'
-        res['response']['card'][
-            'description'] = 'Это игра в имена. Вы называете имя, а я говорю имя на последнюю букву - и так далее.' \
+        res['response']['text'] = 'Это игра в имена. Вы называете имя, а я говорю имя на последнюю букву - и так далее.' \
                              ' Только учтите - мягкий и твердый знаки, а также и буквы "ы" и "й"' \
                              ' не считаются. Называйте имя! Можете начать со своего'
-        with open('names_for_user.txt', 'w', encoding='utf-8') as f:
+        with open(f'{session_id}.txt', 'w', encoding='utf-8') as f:
             f.write('')
         res['response']['buttons'] = get_suggests(user_id)
         return
@@ -68,7 +64,7 @@ def handle_dialog(req, res):
     name = req['request']['original_utterance']
     with open('name.txt', encoding='utf-8') as f:
         all_names = list(map(lambda x: x[:-1], f.readlines()))
-    with open('names_for_user.txt', encoding='utf-8') as f:
+    with open(f'{session_id}.txt', encoding='utf-8') as f:
         names_for_user = list(map(lambda x: x[:-1], f.readlines()))
     # Обрабатываем сторонние ветки
     if 'правила' in name.lower():
@@ -128,6 +124,7 @@ def handle_dialog(req, res):
                     res['response']['text'] = f'У меня закончились имена на ' \
                                               f'букву "{letter.capitalize()}"! Игра окончена. Жду вас снова!'
                     res['response']['end_session'] = True
+                    os.remove(f'{session_id}.txt')
                     return
                 text_answer = all_names[random.randrange(len(all_names))]
                 names_for_user.append(name)
@@ -141,7 +138,7 @@ def handle_dialog(req, res):
                 text_answer = all_names[random.randrange(len(all_names))]
                 names_for_user.append(name)
                 names_for_user.append(text_answer)
-        with open('names_for_user.txt', 'w', encoding='utf-8') as f:
+        with open(f'{session_id}.txt', 'w', encoding='utf-8') as f:
             for i in names_for_user:
                 f.write(i + '\n')
     res['response']['text'] = text_answer
@@ -164,4 +161,4 @@ def get_suggests(user_id):
 
 
 if __name__ == '__main__':
-    app.run(port=5000, host='127.0.0.1')
+    app.run(port=80, host='127.0.0.1')
