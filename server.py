@@ -1,7 +1,6 @@
 from flask import Flask, request, jsonify
 import logging
 import random
-import os
 
 app = Flask(__name__)
 
@@ -69,7 +68,6 @@ def handle_dialog(req, res):
     with open('name.txt', encoding='utf-8') as f:
         all_names = list(map(lambda x: x[:-1], f.readlines()))
     names_for_user = sessions[session_id]
-    print(sessions)
     # Обрабатываем сторонние ветки
     if name.lower() == 'завершить игру':
         res['response']['text'] = f'Игра окончена. Жду вас снова!'
