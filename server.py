@@ -9,6 +9,10 @@ app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 
 sessionStorage = {}
+sessions = {}
+letters = {'А': 'А', 'Б': 'БЭ', 'В': 'ВЭ', 'Г': 'ГЭ', 'Д': 'ДЭ', 'Е': 'Е', 'Ё': 'Ё', 'Ж': 'ЖЭ', 'З': 'ЗЭ', 'И': 'И',
+           'К': 'КА', 'Л': 'ЭЛ', 'М': 'ЭМ', 'Н': 'ЭН', 'О': 'О', 'П': 'ПЭ', 'Р': 'ЭР', 'С': 'ЭС', 'Т': 'ТЭ', 'У': 'У',
+           'Ф': 'ФЭ', 'Х': 'ХЭ', 'Ц': 'ЦЭ', 'Ч': 'ЧЕ', 'Ш': 'ШЭ', 'Щ': 'ЩА', 'Э': 'Э', 'Ю': 'Ю', 'Я': 'Я'}
 
 
 @app.route('/post', methods=['POST'])
@@ -49,14 +53,14 @@ def handle_dialog(req, res):
                 "Подсказка",
                 "На какую букву ходить",
                 "Правила",
+                "Завершить игру"
             ]
         }
         # Заполняем текст ответа
-        res['response']['text'] = 'Это игра в имена. Вы называете имя, а я говорю имя на последнюю букву - и так далее.' \
-                             ' Только учтите - мягкий и твердый знаки, а также и буквы "ы" и "й"' \
+        res['response']['text'] = 'Привет! Это игра в имена. Вы называете имя, а я говорю имя на последнюю букву - и так далее.' \
+                             ' Только учтите - мягкий и твердый знаки, а также буквы "ы" и "й"' \
                              ' не считаются. Называйте имя! Можете начать со своего'
-        with open(f'{session_id}.txt', 'w', encoding='utf-8') as f:
-            f.write('')
+        sessions[session_id] = []
         res['response']['buttons'] = get_suggests(user_id)
         return
 
@@ -64,12 +68,17 @@ def handle_dialog(req, res):
     name = req['request']['original_utterance']
     with open('name.txt', encoding='utf-8') as f:
         all_names = list(map(lambda x: x[:-1], f.readlines()))
-    with open(f'{session_id}.txt', encoding='utf-8') as f:
-        names_for_user = list(map(lambda x: x[:-1], f.readlines()))
+    names_for_user = sessions[session_id]
+    print(sessions)
     # Обрабатываем сторонние ветки
+    if name.lower() == 'завершить игру':
+        res['response']['text'] = f'Игра окончена. Жду вас снова!'
+        del sessions[session_id]
+        res['response']['end_session'] = True
+        return
     if 'правила' in name.lower():
         res['response']['text'] = 'Вы называете имя, а я говорю имя на последнюю букву - и так далее. Только ' \
-                                  'учтите – мягкий и твердый знак, а также и буквы "ы" и "й" не считаются'
+                                  'учтите – мягкий и твердый знак, а также буквы "ы" и "й" не считаются'
         res['response']['buttons'] = get_suggests(user_id)
         return
     if "букв" in name.lower():
@@ -91,6 +100,9 @@ def handle_dialog(req, res):
             if len(all_names) == 0:
                 res['response']['text'] = f'У меня закончились имена на ' \
                                           f'букву "{last_letter.capitalize()}"! Игра окончена. Жду вас снова!'
+                res['response']['tts'] = f'У меня закончились имена на ' \
+                                         f'букву "{letters[last_letter.capitalize()]}"! Игра окончена. Жду вас снова!'
+                del sessions[session_id]
                 res['response']['end_session'] = True
                 return
         test_answer_1 = list(all_names[random.randrange(len(all_names))].upper())
@@ -113,22 +125,27 @@ def handle_dialog(req, res):
                                                     names_for_user[-1][-1] != 'й' else names_for_user[-1][-2]
             if name not in all_names:
                 text_answer = f'Не уверена, что такое имя существует. Вам на "{last_letter.capitalize()}"'
+                res['response']['tts'] = f'Не уверена, что такое имя существует. Вам на "{letters[last_letter.capitalize()]}"'
             elif name[0] != last_letter.capitalize():
                 text_answer = f'Вы назвали имя не на ту букву. Вам на "{last_letter.capitalize()}"'
+                res['response']['tts'] = f'Вы назвали имя не на ту букву. Вам на "{letters[last_letter.capitalize()]}"'
             elif name in all_names and name in names_for_user:
                 text_answer = f'Такое имя уже было. Вам на "{last_letter.capitalize()}"'
+                res['response']['tts'] = f'Такое имя уже было. Вам на "{letters[last_letter.capitalize()]}"'
             else:
                 letter = name[-1] if name[-1] != 'ь' and name[-1] != 'ы' and name[-1] != 'й' else name[-2]
                 all_names = list(filter(lambda x: x[0] == letter.upper() and x not in names_for_user, all_names))
                 if len(all_names) == 0:
                     res['response']['text'] = f'У меня закончились имена на ' \
                                               f'букву "{letter.capitalize()}"! Игра окончена. Жду вас снова!'
+                    res['response']['tts'] = f'У меня закончились имена на ' \
+                                              f'букву "{letters[last_letter.capitalize()]}"! Игра окончена. Жду вас снова!'
                     res['response']['end_session'] = True
                     os.remove(f'{session_id}.txt')
                     return
                 text_answer = all_names[random.randrange(len(all_names))]
-                names_for_user.append(name)
-                names_for_user.append(text_answer)
+                sessions[session_id].append(name)
+                sessions[session_id].append(text_answer)
         else:
             if name not in all_names:
                 text_answer = f'Не уверена, что такое имя существует.'
@@ -136,14 +153,14 @@ def handle_dialog(req, res):
                 letter = name[-1] if name[-1] != 'ь' and name[-1] != 'ы' and name[-1] != 'й' else name[-2]
                 all_names = list(filter(lambda x: x[0] == letter.upper() and x not in names_for_user, all_names))
                 text_answer = all_names[random.randrange(len(all_names))]
-                names_for_user.append(name)
-                names_for_user.append(text_answer)
-        with open(f'{session_id}.txt', 'w', encoding='utf-8') as f:
-            for i in names_for_user:
-                f.write(i + '\n')
+                sessions[session_id].append(name)
+                sessions[session_id].append(text_answer)
     res['response']['text'] = text_answer
     res['response']['buttons'] = get_suggests(user_id)
 
+    if len(sessions) >= 100:
+        for i in list(sessions.keys())[:-10]:
+            del sessions[i]
 
 # Функция возвращает подсказки для ответа.
 def get_suggests(user_id):
